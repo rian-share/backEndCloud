@@ -10,14 +10,11 @@ export default async function handler(req, res) {
   if (!activities) return res.status(400).json({ error: "Data aktivitas kosong" });
 
   try {
-    // URL diperbarui ke v1 dan menggunakan model gemini-pro yang lebih stabil ketersediaannya
-    const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    // Kembali ke v1beta dengan model 1.5-flash (versi terbaru paling stabil untuk gratisan)
+    const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
 
-    const prompt = `Pengguna melakukan aktivitas: "${activities}". 
-    Berdasarkan itu, berikan:
-    1. Satu rekomendasi aktivitas selanjutnya yang seimbang.
-    2. Tanggapan ramah.
-    Balas WAJIB dalam format JSON murni:
+    const prompt = `Berikan rekomendasi aktivitas selanjutnya berdasarkan log ini: "${activities}". 
+    Balas harus dalam format JSON murni:
     {
       "rekomendasi": "isi di sini",
       "tanggapan": "isi di sini"
@@ -27,22 +24,25 @@ export default async function handler(req, res) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }]
+        contents: [{ parts: [{ text: prompt }] }],
+        // Memaksa model untuk memberikan output JSON jika didukung
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
       })
     });
 
     const data = await response.json();
     
     if (!response.ok) {
-      console.error("Detail Error Gemini:", data);
       throw new Error(data.error?.message || "Gagal menghubungi Gemini");
     }
 
-    // Mengambil teks dari respon Gemini
+    // Mengambil teks respon
     let resultText = data.candidates[0].content.parts[0].text;
     
-    // Membersihkan teks jika AI memberikan format markdown ```json ... ```
-    resultText = resultText.replace(/```json|```/g, "").trim();
+    // Pembersihan ekstra: menghapus markdown ```json dan ``` jika ada
+    resultText = resultText.replace(/```json/g, "").replace(/```/g, "").trim();
 
     return res.status(200).json(JSON.parse(resultText));
 

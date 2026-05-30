@@ -10,44 +10,17 @@ export default async function handler(req, res) {
   if (!activities) return res.status(400).json({ error: "Data aktivitas kosong" });
 
   try {
-    // Kembali ke v1beta dengan model 1.5-flash (versi terbaru paling stabil untuk gratisan)
-    const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
-
-    const prompt = `Berikan rekomendasi aktivitas selanjutnya berdasarkan log ini: "${activities}". 
-    Balas harus dalam format JSON murni:
-    {
-      "rekomendasi": "isi di sini",
-      "tanggapan": "isi di sini"
-    }`;
-
-    const response = await fetch(GEMINI_API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        // Memaksa model untuk memberikan output JSON jika didukung
-        generationConfig: {
-          responseMimeType: "application/json"
-        }
-      })
-    });
-
-    const data = await response.json();
+    // Tambahkan .jpg di akhir prompt agar Pollinations mengirim file GAMBAR, bukan halaman web
+    const cleanActivity = activities.replace(/[^a-zA-Z0-9 ]/g, ""); // bersihkan karakter aneh
+    const imagePrompt = encodeURIComponent(`cute chibi student doing ${cleanActivity} high quality`);
     
-    if (!response.ok) {
-      throw new Error(data.error?.message || "Gagal menghubungi Gemini");
-    }
+    // Gunakan format URL ini:
+    const imageUrl = `https://pollinations.ai/p/${imagePrompt}.jpg?width=1024&height=1024&seed=${Date.now()}&nologo=true`;
 
-    // Mengambil teks respon
-    let resultText = data.candidates[0].content.parts[0].text;
-    
-    // Pembersihan ekstra: menghapus markdown ```json dan ``` jika ada
-    resultText = resultText.replace(/```json/g, "").replace(/```/g, "").trim();
-
-    return res.status(200).json(JSON.parse(resultText));
+    // Kirim URL-nya saja ke frontend
+    return res.status(200).json({ image: imageUrl });
 
   } catch (error) {
-    console.error("Log Error:", error.message);
-    return res.status(500).json({ error: "Gagal memproses rekomendasi AI: " + error.message });
+    return res.status(500).json({ error: "Gagal membuat URL gambar" });
   }
 }
