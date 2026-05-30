@@ -31,7 +31,14 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: "gpt-3.5-turbo",
-        messages: [{ role: "user", content: prompt }],
+        messages: [{ 
+            role: "system", 
+            content: "You are a helpful assistant designed to output JSON." // Tambahan wajib untuk mode JSON
+          },
+          { 
+            role: "user", 
+            content: prompt 
+          }],
         response_format: { type: "json_object" } // Memaksa output berupa JSON
       })
     });
