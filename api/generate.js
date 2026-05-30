@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   try {
     // Tambahkan .jpg di akhir prompt agar Pollinations mengirim file GAMBAR, bukan halaman web
     const cleanActivity = activities.replace(/[^a-zA-Z0-9 ]/g, ""); // bersihkan karakter aneh
-    const imagePrompt = encodeURIComponent(`cute chibi student doing ${cleanActivity} high quality`);
+    const imagePrompt = encodeURIComponent(`anime pictures are doing ${cleanActivity} high quality`);
     
     // Gunakan format URL ini:
     const imageUrl = `https://image.pollinations.ai/p/${imagePrompt}.jpg?width=1024&height=1024&seed=${Date.now()}&nologo=true`;
