@@ -15,7 +15,7 @@ export default async function handler(req, res) {
     const imagePrompt = encodeURIComponent(`cute chibi student doing ${cleanActivity} high quality`);
     
     // Gunakan format URL ini:
-    const imageUrl = `https://pollinations.ai/p/${imagePrompt}.jpg?width=1024&height=1024&seed=${Date.now()}&nologo=true`;
+    const imageUrl = `https://image.pollinations.ai/p/${imagePrompt}.jpg?width=1024&height=1024&seed=${Date.now()}&nologo=true`;
 
     // Kirim URL-nya saja ke frontend
     return res.status(200).json({ image: imageUrl });
