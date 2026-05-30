@@ -10,33 +10,19 @@ export default async function handler(req, res) {
   if (!activities) return res.status(400).json({ error: "Data aktivitas kosong" });
 
   try {
-    const prompt = `
-      Buat ilustrasi kartun/chibi yang lucu dan imut dari seorang mahasiswa yang hari ini melakukan: "${activities}".
-      Gambar harus mencerminkan kepribadian atau suasana hati dari aktivitas tersebut. 
-      Warna cerah, tanpa teks di dalam gambar, kualitas tinggi.
-    `;
+    // Membuat prompt gambar yang optimal
+    const imagePrompt = encodeURIComponent(`cute chibi student doing ${activities}, high quality, bright colors, 2d cartoon style`);
+    const imageUrl = `https://pollinations.ai/p/${imagePrompt}?width=1024&height=1024&seed=${Date.now()}&nologo=true`;
 
-    const response = await fetch("https://api.openai.com/v1/images/generations", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: "dall-e-3",
-        prompt: prompt,
-        n: 1,
-        size: "1024x1024",
-        response_format: "b64_json"
-      })
-    });
+    // Mengambil gambar dan mengubahnya ke Base64 agar cocok dengan frontend kamu
+    const imageResponse = await fetch(imageUrl);
+    const arrayBuffer = await imageResponse.arrayBuffer();
+    const base64Image = Buffer.from(arrayBuffer).toString('base64');
 
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error?.message);
-
-    return res.status(200).json({ image: data.data[0].b64_json });
+    return res.status(200).json({ image: base64Image });
 
   } catch (error) {
+    console.error(error);
     return res.status(500).json({ error: "Gagal membuat gambar AI" });
   }
 }
