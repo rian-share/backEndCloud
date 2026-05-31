@@ -10,40 +10,43 @@ export default async function handler(req, res) {
   if (!activities) return res.status(400).json({ error: "Data aktivitas kosong" });
 
   try {
-    // Ambil API Key dari Vercel Environment Variables
     const apiKey = process.env.GEMINI_API_KEY;
     
-    // Endpoint khusus untuk model pembuat gambar (Imagen) dari Google
-    const IMAGEN_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${apiKey}`;
+    // Kita gunakan model Imagen 4.0 yang kamu temukan di JSON tadi
+    const IMAGEN_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
 
-    const prompt = `gaya anime seseorang yang sedang melakukan  ${activities}, high quality, detailed`;
+    // Prompt gambar (kamu bisa ubah ke bahasa Indonesia jika mau)
+    const prompt = `anime style picture of someone doing ${activities}, high quality, detailed, vibrant colors`;
 
-    // Kirim permintaan (POST) ke server Google
     const response = await fetch(IMAGEN_API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        instances: [{ prompt: prompt }],
-        parameters: { sampleCount: 1 } // Kita minta 1 gambar saja
+        instances: [
+          { prompt: prompt }
+        ],
+        parameters: { 
+          sampleCount: 1 // Hanya buat 1 gambar untuk menghemat waktu & data
+        }
       })
     });
 
     const data = await response.json();
 
-    // Cek jika Google berhasil mengembalikan data gambar
+    // Cek keberhasilan dari Google
     if (data.predictions && data.predictions.length > 0) {
-      // Google mengirim gambar dalam format Base64, kita ubah jadi format URL Data
+      // Ambil kode Base64 gambar dan jadikan format URL
       const base64Image = data.predictions[0].bytesBase64Encoded;
       const imageUrl = `data:image/jpeg;base64,${base64Image}`;
       
-      // Kirim ke frontend (frontend tetap bisa menampilkannya di tag <img src="...">)
       return res.status(200).json({ image: imageUrl });
     } else {
-      // Jika terjadi error dari sisi Google (misalnya prompt ditolak)
+      console.error("Respon Google:", data);
       return res.status(500).json({ error: data.error?.message || "Google menolak membuat gambar ini." });
     }
 
   } catch (error) {
+    console.error("Error Fetch:", error);
     return res.status(500).json({ error: "Gagal terhubung ke server Google" });
   }
 }
