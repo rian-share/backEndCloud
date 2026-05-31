@@ -16,7 +16,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${apiKey}`;
+    const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
     const prompt = `Berikan rekomendasi aktivitas selanjutnya berdasarkan log ini: "${activities}". 
     Balas harus dalam format JSON murni tanpa awalan/akhiran apapun:
     {
