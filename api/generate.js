@@ -10,43 +10,43 @@ export default async function handler(req, res) {
   if (!activities) return res.status(400).json({ error: "Data aktivitas kosong" });
 
   try {
+    // 1. Siapkan API Key Gemini untuk teks
     const apiKey = process.env.GEMINI_API_KEY;
-    
-    // Kita gunakan model Imagen 4.0 yang kamu temukan di JSON tadi
-    const IMAGEN_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
+    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-    // Prompt gambar (kamu bisa ubah ke bahasa Indonesia jika mau)
-    const prompt = `anime style picture of someone doing ${activities}, high quality, detailed, vibrant colors`;
+    // Instruksi ke Gemini: Terjemahkan dan percantik prompt-nya!
+    const geminiInstruction = `Saya punya teks aktivitas dalam bahasa Indonesia: "${activities}". 
+    Tolong ubah teks ini menjadi prompt gambar AI berbahasa Inggris yang sangat detail, estetik, bergaya anime 3D berkualitas tinggi (masterpiece, best quality, vibrant colors). 
+    PENTING: Cukup berikan teks prompt bahasa Inggris-nya saja, jangan tambahkan penjelasan atau basa-basi apa pun.`;
 
-    const response = await fetch(IMAGEN_API_URL, {
+    // 2. Minta Gemini memikirkan prompt-nya
+    const geminiResponse = await fetch(GEMINI_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        instances: [
-          { prompt: prompt }
-        ],
-        parameters: { 
-          sampleCount: 1 // Hanya buat 1 gambar untuk menghemat waktu & data
-        }
+        contents: [{ parts: [{ text: geminiInstruction }] }]
       })
     });
 
-    const data = await response.json();
+    const geminiData = await geminiResponse.json();
+    
+    // Fallback (jaga-jaga jika Gemini gagal, kita punya cadangan standar)
+    let finalPrompt = `anime style picture of someone doing ${activities.replace(/[^a-zA-Z0-9 ]/g, "")}`;
 
-    // Cek keberhasilan dari Google
-    if (data.predictions && data.predictions.length > 0) {
-      // Ambil kode Base64 gambar dan jadikan format URL
-      const base64Image = data.predictions[0].bytesBase64Encoded;
-      const imageUrl = `data:image/jpeg;base64,${base64Image}`;
-      
-      return res.status(200).json({ image: imageUrl });
-    } else {
-      console.error("Respon Google:", data);
-      return res.status(500).json({ error: data.error?.message || "Google menolak membuat gambar ini." });
+    // Jika Gemini berhasil menjawab, gunakan jawaban canggihnya
+    if (geminiData.candidates && geminiData.candidates.length > 0) {
+      finalPrompt = geminiData.candidates[0].content.parts[0].text.trim();
     }
 
+    // 3. Kirim prompt canggih berbahasa Inggris tersebut ke Pollinations
+    const encodedPrompt = encodeURIComponent(finalPrompt);
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${Date.now()}&nologo=true`;
+
+    // Kirim URL gambar ke frontend
+    return res.status(200).json({ image: imageUrl });
+
   } catch (error) {
-    console.error("Error Fetch:", error);
-    return res.status(500).json({ error: "Gagal terhubung ke server Google" });
+    console.error(error);
+    return res.status(500).json({ error: "Gagal membuat gambar hybrid" });
   }
 }
