@@ -14,8 +14,7 @@ export default async function handler(req, res) {
 
   try {
     const HF_TOKEN = process.env.HF_TOKEN;
-    // Gunakan model FLUX atau SDXL untuk hasil terbaik
-    const HF_MODEL = "stabilityai/stable-diffusion-xl-base-1.0"; 
+    const HF_MODEL = "Lykon/AnyLoRA";
 
     // Kita buat "Template Prompt" agar hasilnya tetap bergaya anime/bagus 
     // meskipun user cuma ngetik teks pendek.
@@ -29,11 +28,11 @@ export default async function handler(req, res) {
           "Content-Type": "application/json",
         },
         method: "POST",
-        body: JSON.stringify({ 
-            inputs: enhancedPrompt,
-            parameters: {
-                negative_prompt: "blurry, bad quality, distorted, low resolution",
-            }
+        body: JSON.stringify({
+          inputs: enhancedPrompt,
+          parameters: {
+            negative_prompt: "blurry, bad quality, distorted, low resolution",
+          }
         }),
       }
     );
@@ -51,12 +50,18 @@ export default async function handler(req, res) {
     const buffer = Buffer.from(arrayBuffer);
     const base64Image = buffer.toString("base64");
 
-    return res.status(200).json({ 
-      image: `data:image/jpeg;base64,${base64Image}` 
+    return res.status(200).json({
+      image: `data:image/jpeg;base64,${base64Image}`
     });
 
   } catch (error) {
-    console.error("ERROR LOG:", error.message);
-    return res.status(500).json({ error: error.message });
+    console.error("LOG DETAIL ERROR:", error);
+
+    // Kirim pesan error yang sangat spesifik ke Frontend
+    return res.status(500).json({
+      error: error.message,
+      stack: error.stack,
+      hint: "Cek apakah HF_TOKEN di Vercel sudah benar dan tanpa tanda kutip."
+    });
   }
 }
