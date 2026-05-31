@@ -1,69 +1,52 @@
-import dns from 'node:dns';
-if (dns.setDefaultResultOrder) {
-    dns.setDefaultResultOrder('ipv4first');
-}
-
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") return res.status(200).end();
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  if (req.method !== "POST") return res.status(405).json({ error: "Gunakan method POST" });
 
   const { activities } = req.body;
-  if (!activities) return res.status(400).json({ error: "Data kosong" });
+  if (!activities) return res.status(400).json({ error: "Data aktivitas kosong" });
 
   try {
-    const HF_TOKEN = process.env.HF_TOKEN;
-   const HF_MODEL = "stabilityai/sdxl-turbo";
+    // 1. Siapkan API Key Gemini untuk teks
+    const apiKey = process.env.GEMINI_API_KEY;
+    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-    // Kita buat "Template Prompt" agar hasilnya tetap bergaya anime/bagus 
-    // meskipun user cuma ngetik teks pendek.
-    const enhancedPrompt = `High quality 3D anime style, vibrant colors, masterpiece, ${activities}, highly detailed, aesthetic background.`;
+    // Instruksi ke Gemini: Terjemahkan dan percantik prompt-nya!
+    const geminiInstruction = `Saya punya teks aktivitas dalam bahasa Indonesia: "${activities}". 
+    Tolong ubah teks ini menjadi prompt gambar AI berbahasa Inggris yang sangat detail, estetik, bergaya anime 3D berkualitas tinggi (masterpiece, best quality, vibrant colors). 
+    PENTING: Cukup berikan teks prompt bahasa Inggris-nya saja, jangan tambahkan penjelasan atau basa-basi apa pun.`;
 
-    const hfResponse = await fetch(
-      `https://api-inference.huggingface.co/models/${HF_MODEL}`,
-      {
-        headers: {
-          Authorization: `Bearer ${HF_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        method: "POST",
-        body: JSON.stringify({
-          inputs: enhancedPrompt,
-          parameters: {
-            negative_prompt: "blurry, bad quality, distorted, low resolution",
-          }
-        }),
-      }
-    );
+    // 2. Minta Gemini memikirkan prompt-nya
+    const geminiResponse = await fetch(GEMINI_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: geminiInstruction }] }]
+      })
+    });
 
-    if (!hfResponse.ok) {
-      const errorText = await hfResponse.text();
-      // Jika error 503, berarti model sedang loading di server HF
-      if (hfResponse.status === 503) {
-        return res.status(503).json({ error: "Model sedang disiapkan, coba lagi dalam 30 detik." });
-      }
-      throw new Error(`HF Error: ${errorText}`);
+    const geminiData = await geminiResponse.json();
+    
+    // Fallback (jaga-jaga jika Gemini gagal, kita punya cadangan standar)
+    let finalPrompt = `anime style picture of someone doing ${activities.replace(/[^a-zA-Z0-9 ]/g, "")}`;
+
+    // Jika Gemini berhasil menjawab, gunakan jawaban canggihnya
+    if (geminiData.candidates && geminiData.candidates.length > 0) {
+      finalPrompt = geminiData.candidates[0].content.parts[0].text.trim();
     }
 
-    const arrayBuffer = await hfResponse.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const base64Image = buffer.toString("base64");
+    // 3. Kirim prompt canggih berbahasa Inggris tersebut ke Pollinations
+    const encodedPrompt = encodeURIComponent(finalPrompt);
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${Date.now()}&nologo=true`;
 
-    return res.status(200).json({
-      image: `data:image/jpeg;base64,${base64Image}`
-    });
+    // Kirim URL gambar ke frontend
+    return res.status(200).json({ image: imageUrl });
 
   } catch (error) {
-    console.error("LOG DETAIL ERROR:", error);
-
-    // Kirim pesan error yang sangat spesifik ke Frontend
-    return res.status(500).json({
-      error: error.message,
-      stack: error.stack,
-      hint: "Cek apakah HF_TOKEN di Vercel sudah benar dan tanpa tanda kutip."
-    });
+    console.error(error);
+    return res.status(500).json({ error: "Gagal membuat gambar hybrid" });
   }
 }
