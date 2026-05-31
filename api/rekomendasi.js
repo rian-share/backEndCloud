@@ -16,7 +16,7 @@ export default async function handler(req, res) {
   }
 
   try {
-   const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent?key=${apiKey}`;
+    const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     const prompt = `Berikan rekomendasi aktivitas selanjutnya berdasarkan log ini: "${activities}". 
     Balas harus dalam format JSON murni tanpa awalan/akhiran apapun:
     {
@@ -36,7 +36,7 @@ export default async function handler(req, res) {
     });
 
     const data = await response.json();
-    
+
     // 2. Cek jika HTTP Response dari Google bukan 200 OK
     if (!response.ok) {
       throw new Error(data.error?.message || "Gagal menghubungi server Gemini.");
@@ -44,13 +44,13 @@ export default async function handler(req, res) {
 
     // 3. Cek struktur data dengan sangat hati-hati (mencegah crash karena safety rating)
     const candidate = data?.candidates?.[0];
-    
+
     if (candidate?.finishReason === 'SAFETY') {
-       throw new Error("Aktivitasmu terblokir filter keamanan Gemini.");
+      throw new Error("Aktivitasmu terblokir filter keamanan Gemini.");
     }
 
     let resultText = candidate?.content?.parts?.[0]?.text;
-    
+
     if (!resultText) {
       console.log("Response aneh dari Gemini:", JSON.stringify(data));
       throw new Error("Gemini tidak mengembalikan teks apa pun.");
