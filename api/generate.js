@@ -67,7 +67,10 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: "Gagal membuat gambar via Hugging Face" });
+    console.error("DETEKSI ERROR:", error.message);
+    return res.status(500).json({ 
+      error: "Gagal memproses AI", 
+      details: error.message // Ini akan memunculkan pesan error asli ke frontend
+    });
   }
 }
