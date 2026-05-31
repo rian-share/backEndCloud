@@ -1,5 +1,7 @@
 import dns from 'node:dns';
-dns.setDefaultResultOrder('ipv4first'); // Mengatasi masalah "fetch failed" di Vercel
+if (dns.setDefaultResultOrder) {
+    dns.setDefaultResultOrder('ipv4first');
+}
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -21,7 +23,7 @@ export default async function handler(req, res) {
     const enhancedPrompt = `High quality 3D anime style, vibrant colors, masterpiece, ${activities}, highly detailed, aesthetic background.`;
 
     const hfResponse = await fetch(
-      `https://api-inference.huggingface.co/models/${HF_MODEL}`,
+      "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5",
       {
         headers: {
           Authorization: `Bearer ${HF_TOKEN}`,
