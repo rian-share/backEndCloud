@@ -16,14 +16,14 @@ export default async function handler(req, res) {
 
   try {
     const HF_TOKEN = process.env.HF_TOKEN;
-    const HF_MODEL = "Lykon/AnyLoRA";
+   const HF_MODEL = "stabilityai/sdxl-turbo";
 
     // Kita buat "Template Prompt" agar hasilnya tetap bergaya anime/bagus 
     // meskipun user cuma ngetik teks pendek.
     const enhancedPrompt = `High quality 3D anime style, vibrant colors, masterpiece, ${activities}, highly detailed, aesthetic background.`;
 
     const hfResponse = await fetch(
-      "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5",
+      `https://api-inference.huggingface.co/models/${HF_MODEL}`,
       {
         headers: {
           Authorization: `Bearer ${HF_TOKEN}`,
