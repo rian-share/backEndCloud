@@ -14,7 +14,7 @@ export default async function handler(req, res) {
     // Menggunakan Gemini 1.5 Flash (lebih stabil untuk produksi)
     const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-    const geminiInstruction = `translate jadi bahasa ingris kalimat ini "buatkan saya gambar dari aktivitas ${activities}" berikan saya artinya saja`;
+    const geminiInstruction = `translate kalimat ini (buatkan saya gambar dari aktivitas ${activities})' ke bahasa inggris! berikan saya artinya saja`;
 
     // 1. Dapatkan Prompt dari Gemini
     const geminiResponse = await fetch(GEMINI_URL, {
