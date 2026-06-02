@@ -14,9 +14,7 @@ export default async function handler(req, res) {
     // Menggunakan Gemini 1.5 Flash (lebih stabil untuk produksi)
     const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-    const geminiInstruction = `Saya punya teks aktivitas: "${activities}". 
-    Ubah menjadi prompt gambar AI bahasa Inggris detail, gaya anime 3D, masterpiece, vibrant. 
-    Hanya berikan teks prompt saja.`;
+    const geminiInstruction = `translate jadi bahasa ingris kalimat ini "buatkan saya gambar dari aktivitas ${activities}" berikan saya artinya saja`;
 
     // 1. Dapatkan Prompt dari Gemini
     const geminiResponse = await fetch(GEMINI_URL, {
@@ -40,17 +38,15 @@ export default async function handler(req, res) {
 
     // 3. PENTING: Tunggu dan Download gambarnya di Backend
     const imageResponse = await fetch(imageUrl);
-    
+
     if (!imageResponse.ok) throw new Error("Gagal generate gambar dari server AI");
 
-    // Ubah hasil download menjadi Buffer lalu ke Base64
     const arrayBuffer = await imageResponse.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     const base64Image = buffer.toString("base64");
 
-    // 4. Kirim data Base64 ke Frontend
-    return res.status(200).json({ 
-      image: `data:image/jpeg;base64,${base64Image}` 
+    return res.status(200).json({
+      image: `data:image/jpeg;base64,${base64Image}`
     });
 
   } catch (error) {
