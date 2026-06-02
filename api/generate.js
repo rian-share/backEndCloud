@@ -1,4 +1,7 @@
 export default async function handler(req, res) {
+  // ==========================================
+  // 1. ATURAN CORS & VALIDASI METHOD
+  // ==========================================
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -11,47 +14,47 @@ export default async function handler(req, res) {
 
   try {
     const apiKey = process.env.GEMINI_API_KEY;
-    // Menggunakan Gemini 1.5 Flash (lebih stabil untuk produksi)
-    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    
+    // URL Endpoint khusus untuk Gemini Imagen (menggunakan :generateImages, bukan :generateContent)
+    const GEMINI_IMAGEN_URL = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-fast-generate-001:generateImages?key=${apiKey}`;
 
-    const geminiInstruction = `Terjemahkan aktivitas "${activities}" menjadi satu kalimat deskripsi gambar dalam bahasa Inggris (tanpa kata 'buatkan saya gambar'). Berikan bahasa Inggrisnya saja, tanpa basa-basi dan tanpa tanda kutip!`;
-
-    // 1. Dapatkan Prompt dari Gemini
-    const geminiResponse = await fetch(GEMINI_URL, {
+    // ==========================================
+    // 2. TEMBAK API GEMINI IMAGEN LANGSUNG
+    // ==========================================
+    const geminiResponse = await fetch(GEMINI_IMAGEN_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: geminiInstruction }] }]
+        prompt: activities,
+        numberOfImages: 1,
+        aspectRatio: "1:1",          // Pilihan: "1:1", "3:4", "4:3", "9:16", "16:9"
+        outputMimeType: "image/jpeg" // Pilihan: "image/jpeg" atau "image/png"
       })
     });
 
     const geminiData = await geminiResponse.json();
-    let finalPrompt = activities;
 
-    if (geminiData.candidates?.[0]?.content?.parts?.[0]?.text) {
-      let rawText = geminiData.candidates[0].content.parts[0].text.trim();
-      finalPrompt = rawText.replace(/^["']|["']$/g, '');
+    // Cek jika ada error dari sistem internal API Gemini
+    if (geminiData.error) {
+      throw new Error(geminiData.error.message || "Terjadi kesalahan pada API Gemini.");
     }
 
-    // 2. Tembak Pollinations
-    const encodedPrompt = encodeURIComponent(finalPrompt);
-    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${Date.now()}&nologo=true&model=flux`;
+    // Mengambil data base64 langsung dari struktur json Imagen
+    const base64Image = geminiData.generatedImages?.[0]?.image?.imageBytes;
 
-    // 3. PENTING: Tunggu dan Download gambarnya di Backend
-    const imageResponse = await fetch(imageUrl);
+    if (!base64Image) {
+      throw new Error("Gagal mendapatkan gambar. Pastikan prompt kamu aman (tidak melanggar Safety Filter Gemini).");
+    }
 
-    if (!imageResponse.ok) throw new Error("Gagal generate gambar dari server AI");
-
-    const arrayBuffer = await imageResponse.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const base64Image = buffer.toString("base64");
-
+    // ==========================================
+    // 3. KIRIM KEMBALI KE FRONTEND
+    // ==========================================
     return res.status(200).json({
       image: `data:image/jpeg;base64,${base64Image}`
     });
 
   } catch (error) {
-    console.error("ERROR:", error);
+    console.error("ERROR IMAGEN:", error);
     return res.status(500).json({ error: "Gagal membuat gambar: " + error.message });
   }
 }
