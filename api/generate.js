@@ -14,7 +14,7 @@ export default async function handler(req, res) {
     // Menggunakan Gemini 1.5 Flash (lebih stabil untuk produksi)
     const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-    const geminiInstruction = `translate kalimat ini (buatkan saya gambar dari aktivitas ${activities})' ke bahasa inggris! berikan saya artinya saja`;
+    const geminiInstruction = `Terjemahkan aktivitas "${activities}" menjadi satu kalimat deskripsi gambar dalam bahasa Inggris (tanpa kata 'buatkan saya gambar'). Berikan bahasa Inggrisnya saja, tanpa basa-basi dan tanpa tanda kutip!`;
 
     // 1. Dapatkan Prompt dari Gemini
     const geminiResponse = await fetch(GEMINI_URL, {
@@ -29,7 +29,8 @@ export default async function handler(req, res) {
     let finalPrompt = activities;
 
     if (geminiData.candidates?.[0]?.content?.parts?.[0]?.text) {
-      finalPrompt = geminiData.candidates[0].content.parts[0].text.trim();
+      let rawText = geminiData.candidates[0].content.parts[0].text.trim();
+      finalPrompt = rawText.replace(/^["']|["']$/g, '');
     }
 
     // 2. Tembak Pollinations
