@@ -11,57 +11,47 @@ export default async function handler(req, res) {
 
   try {
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error("API Key Gemini belum diatur di Environment Variables");
-    
-    // Kita gunakan versi 3.0 yang menjadi standar stabil di AI Studio saat ini
-    const MODEL_NAME = "imagen-3.0-generate-002"; 
-    const GEMINI_IMAGEN_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateImages?key=${apiKey}`;
+    // Menggunakan Gemini 1.5 Flash (lebih stabil untuk produksi)
+    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-    const geminiResponse = await fetch(GEMINI_IMAGEN_URL, {
+    const geminiInstruction = `Terjemahkan aktivitas "${activities}" menjadi satu kalimat deskripsi gambar dalam bahasa Inggris (tanpa kata 'buatkan saya gambar'). Berikan bahasa Inggrisnya saja, tanpa basa-basi dan tanpa tanda kutip!`;
+
+    // 1. Dapatkan Prompt dari Gemini
+    const geminiResponse = await fetch(GEMINI_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        prompt: activities,
-        numberOfImages: 1,
-        aspectRatio: "1:1",
-        outputMimeType: "image/jpeg"
+        contents: [{ parts: [{ text: geminiInstruction }] }]
       })
     });
 
-    // 1. Cek status HTTP Utama
-    if (!geminiResponse.ok) {
-      const errorHtmlOrText = await geminiResponse.text();
-      throw new Error(`Google API Error (Status ${geminiResponse.status}): ${errorHtmlOrText}`);
+    const geminiData = await geminiResponse.json();
+    let finalPrompt = activities;
+
+    if (geminiData.candidates?.[0]?.content?.parts?.[0]?.text) {
+      let rawText = geminiData.candidates[0].content.parts[0].text.trim();
+      finalPrompt = rawText.replace(/^["']|["']$/g, '');
     }
 
-    // 2. Ambil sebagai TEKS MENTAH dulu (Kunci pencegah crash)
-    const rawText = await geminiResponse.text();
+    // 2. Tembak Pollinations
+    const encodedPrompt = encodeURIComponent(finalPrompt);
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${Date.now()}&nologo=true&model=flux`;
 
-    // 3. Cek apakah Google mengirim teks kosong
-    if (!rawText || rawText.trim() === "") {
-      throw new Error("Google mengembalikan status 200 OK, tetapi badannya KOSONG. Ini biasanya tanda bahwa wilayah/region akun kamu belum mendukung API Imagen, atau limit kuota harian habis tanpa pesan error resmi.");
-    }
+    // 3. PENTING: Tunggu dan Download gambarnya di Backend
+    const imageResponse = await fetch(imageUrl);
 
-    // 4. Baru kita coba parse secara aman
-    let geminiData;
-    try {
-      geminiData = JSON.parse(rawText);
-    } catch (parseError) {
-      throw new Error(`Gagal membaca format JSON. Respon mentah dari Google: ${rawText.substring(0, 300)}`);
-    }
+    if (!imageResponse.ok) throw new Error("Gagal generate gambar dari server AI");
 
-    const base64Image = geminiData.generatedImages?.[0]?.image?.imageBytes;
-
-    if (!base64Image) {
-      throw new Error("Gambar tidak ditemukan di dalam respon Google. Prompt mungkin terkena Safety Filter.");
-    }
+    const arrayBuffer = await imageResponse.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64Image = buffer.toString("base64");
 
     return res.status(200).json({
       image: `data:image/jpeg;base64,${base64Image}`
     });
 
   } catch (error) {
-    console.error("LOG ERROR LENGKAP:", error);
-    return res.status(500).json({ error: error.message });
+    console.error("ERROR:", error);
+    return res.status(500).json({ error: "Gagal membuat gambar: " + error.message });
   }
 }
