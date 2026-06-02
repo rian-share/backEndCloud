@@ -1,7 +1,4 @@
 export default async function handler(req, res) {
-  // ==========================================
-  // 1. ATURAN CORS & VALIDASI METHOD
-  // ==========================================
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -14,47 +11,57 @@ export default async function handler(req, res) {
 
   try {
     const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error("API Key Gemini belum diatur di Environment Variables");
     
-    // URL Endpoint khusus untuk Gemini Imagen (menggunakan :generateImages, bukan :generateContent)
-    const GEMINI_IMAGEN_URL = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-fast-generate-001:generateImages?key=${apiKey}`;
+    // Kita gunakan versi 3.0 yang menjadi standar stabil di AI Studio saat ini
+    const MODEL_NAME = "imagen-3.0-generate-002"; 
+    const GEMINI_IMAGEN_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateImages?key=${apiKey}`;
 
-    // ==========================================
-    // 2. TEMBAK API GEMINI IMAGEN LANGSUNG
-    // ==========================================
     const geminiResponse = await fetch(GEMINI_IMAGEN_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         prompt: activities,
         numberOfImages: 1,
-        aspectRatio: "1:1",          // Pilihan: "1:1", "3:4", "4:3", "9:16", "16:9"
-        outputMimeType: "image/jpeg" // Pilihan: "image/jpeg" atau "image/png"
+        aspectRatio: "1:1",
+        outputMimeType: "image/jpeg"
       })
     });
 
-    const geminiData = await geminiResponse.json();
-
-    // Cek jika ada error dari sistem internal API Gemini
-    if (geminiData.error) {
-      throw new Error(geminiData.error.message || "Terjadi kesalahan pada API Gemini.");
+    // 1. Cek status HTTP Utama
+    if (!geminiResponse.ok) {
+      const errorHtmlOrText = await geminiResponse.text();
+      throw new Error(`Google API Error (Status ${geminiResponse.status}): ${errorHtmlOrText}`);
     }
 
-    // Mengambil data base64 langsung dari struktur json Imagen
+    // 2. Ambil sebagai TEKS MENTAH dulu (Kunci pencegah crash)
+    const rawText = await geminiResponse.text();
+
+    // 3. Cek apakah Google mengirim teks kosong
+    if (!rawText || rawText.trim() === "") {
+      throw new Error("Google mengembalikan status 200 OK, tetapi badannya KOSONG. Ini biasanya tanda bahwa wilayah/region akun kamu belum mendukung API Imagen, atau limit kuota harian habis tanpa pesan error resmi.");
+    }
+
+    // 4. Baru kita coba parse secara aman
+    let geminiData;
+    try {
+      geminiData = JSON.parse(rawText);
+    } catch (parseError) {
+      throw new Error(`Gagal membaca format JSON. Respon mentah dari Google: ${rawText.substring(0, 300)}`);
+    }
+
     const base64Image = geminiData.generatedImages?.[0]?.image?.imageBytes;
 
     if (!base64Image) {
-      throw new Error("Gagal mendapatkan gambar. Pastikan prompt kamu aman (tidak melanggar Safety Filter Gemini).");
+      throw new Error("Gambar tidak ditemukan di dalam respon Google. Prompt mungkin terkena Safety Filter.");
     }
 
-    // ==========================================
-    // 3. KIRIM KEMBALI KE FRONTEND
-    // ==========================================
     return res.status(200).json({
       image: `data:image/jpeg;base64,${base64Image}`
     });
 
   } catch (error) {
-    console.error("ERROR IMAGEN:", error);
-    return res.status(500).json({ error: "Gagal membuat gambar: " + error.message });
+    console.error("LOG ERROR LENGKAP:", error);
+    return res.status(500).json({ error: error.message });
   }
 }
