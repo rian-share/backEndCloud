@@ -40,7 +40,10 @@ export default async function handler(req, res) {
     // 3. PENTING: Tunggu dan Download gambarnya di Backend
     const imageResponse = await fetch(imageUrl);
 
-    if (!imageResponse.ok) throw new Error("Gagal generate gambar dari server AI");
+    if (!imageResponse.ok) {
+      const errorText = await imageResponse.text(); // Ambil teks error dari server Pollinations
+      throw new Error(`Pollinations Server Error (Status ${imageResponse.status}): ${errorText || 'Tidak ada pesan'}`);
+    }
 
     const arrayBuffer = await imageResponse.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
