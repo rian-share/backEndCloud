@@ -40,7 +40,7 @@ export default async function handler(req, res) {
     // 3. PENTING: Tunggu dan Download gambarnya di Backend
     const imageResponse = await fetch(imageUrl);
 
-    if (!imageResponse.ok) throw new Error("Gagal generate gambar dari server AI");
+    if (!imageResponse.ok) throw new Error("Server AI Sedang Sibuk, Coba beberapa saat lagi");
 
     const arrayBuffer = await imageResponse.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
