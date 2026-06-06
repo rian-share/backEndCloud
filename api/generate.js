@@ -35,7 +35,7 @@ export default async function handler(req, res) {
 
     // 2. Tembak Pollinations
     const encodedPrompt = encodeURIComponent(finalPrompt);
-    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${Date.now()}&nologo=true&model=flux`;
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${Date.now()}&nologo=true`;
 
     // 3. PENTING: Tunggu dan Download gambarnya di Backend
     const imageResponse = await fetch(imageUrl);
