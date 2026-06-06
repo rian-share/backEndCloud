@@ -11,6 +11,7 @@ export default async function handler(req, res) {
 
   try {
     const apiKey = process.env.GEMINI_API_KEY;
+    // Menggunakan Gemini 1.5 Flash (lebih stabil untuk produksi)
     const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     const geminiInstruction = `Terjemahkan aktivitas "${activities}" menjadi satu kalimat deskripsi gambar dalam bahasa Inggris (tanpa kata 'buatkan saya gambar'). Berikan bahasa Inggrisnya saja, tanpa basa-basi dan tanpa tanda kutip!`;
@@ -32,18 +33,25 @@ export default async function handler(req, res) {
       finalPrompt = rawText.replace(/^["']|["']$/g, '');
     }
 
-    // 2. Buat URL Pollinations (Rekomendasi: Hapus model=flux agar antrean lebih longgar)
+    // 2. Tembak Pollinations
     const encodedPrompt = encodeURIComponent(finalPrompt);
-    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${Date.now()}&nologo=true`;
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${Date.now()}&nologo=true&model=flux`;
 
-    // 3. LANGSUNG KIRIM URL NYA (Tanpa download di backend)
+    // 3. PENTING: Tunggu dan Download gambarnya di Backend
+    const imageResponse = await fetch(imageUrl);
+
+    if (!imageResponse.ok) throw new Error("Gagal generate gambar dari server AI");
+
+    const arrayBuffer = await imageResponse.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64Image = buffer.toString("base64");
+
     return res.status(200).json({
-      success: true,
-      url: imageUrl
+      image: `data:image/jpeg;base64,${base64Image}`
     });
 
   } catch (error) {
     console.error("ERROR:", error);
-    return res.status(500).json({ error: "Gagal memproses prompt: " + error.message });
+    return res.status(500).json({ error: "Gagal membuat gambar: " + error.message });
   }
 }
